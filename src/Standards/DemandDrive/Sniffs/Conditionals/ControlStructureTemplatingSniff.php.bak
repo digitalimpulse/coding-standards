@@ -1,0 +1,387 @@
+<?php
+/**
+ * Control Structure Templating Sniff
+ *
+ * Ensures proper indentation of HTML content within PHP control structures.
+ *
+ * @package DemandDrive\Sniffs
+ */
+
+namespace DemandDrive\Standards\DemandDrive\Sniffs\Conditionals;
+
+use PHP_CodeSniffer\Sniffs\Sniff;
+use PHP_CodeSniffer\Files\File;
+
+/**
+ * Control Structure Templating Sniff
+ *
+ * Checks for proper indentation of HTML content within PHP control structures.
+ */
+class ControlStructureTemplatingSniff implements Sniff {
+
+	/**
+	 * Returns an array of tokens this test wants to listen for.
+	 *
+	 * @return array
+	 */
+	public function register() {
+		return array( T_IF, T_ELSEIF, T_ELSE, T_WHILE, T_FOR, T_FOREACH );
+	}
+
+	/**
+	 * Processes this test, when one of its tokens is encountered.
+	 *
+	 * @param File $phpcs_file The file being scanned.
+	 * @param int  $stack_ptr  The position of the current token in the stack.
+	 *
+	 * @return void
+	 */
+	public function process( File $phpcs_file, $stack_ptr ) {
+		$tokens = $phpcs_file->getTokens();
+
+		// Only process control structures that use alternate syntax (colon syntax).
+		if ( ! $this->isAlternateSyntax( $phpcs_file, $stack_ptr ) ) {
+			return;
+		}
+
+		// Check if this control structure contains HTML templating.
+		if ( ! $this->hasHtmlTemplating( $phpcs_file, $stack_ptr ) ) {
+			return;
+		}
+
+		// Check the indentation of HTML content within the control structure.
+		$this->checkHtmlIndentation( $phpcs_file, $stack_ptr );
+	}
+
+	/**
+	 * Check if the control structure uses alternate syntax (colon syntax).
+	 *
+	 * @param File $phpcs_file The file being scanned.
+	 * @param int  $stack_ptr  The position of the current token.
+	 *
+	 * @return bool
+	 */
+	private function isAlternateSyntax( File $phpcs_file, $stack_ptr ) {
+		$tokens = $phpcs_file->getTokens();
+
+		// For else statements, look for colon after else.
+		if ( T_ELSE === $tokens[ $stack_ptr ]['code'] ) {
+			$colon_ptr = $phpcs_file->findNext( T_COLON, $stack_ptr );
+			return false !== $colon_ptr;
+		}
+
+		// For other control structures, find the colon that indicates alternate syntax.
+		$colon_ptr = $phpcs_file->findNext( T_COLON, $stack_ptr );
+		if ( false === $colon_ptr ) {
+			return false;
+		}
+
+		// Check if this colon is part of a ternary operator.
+		$question_ptr = $phpcs_file->findPrevious( T_INLINE_THEN, $stack_ptr, $colon_ptr );
+		if ( false !== $question_ptr ) {
+			return false; // This is a ternary operator.
+		}
+
+		// Check if there's an opening brace before the colon.
+		$open_brace_ptr = $phpcs_file->findNext( T_OPEN_CURLY_BRACKET, $stack_ptr, $colon_ptr );
+		if ( false !== $open_brace_ptr ) {
+			return false; // This uses curly brace syntax.
+		}
+
+		return true;
+	}
+
+	/**
+	 * Check if the control structure contains HTML templating.
+	 *
+	 * @param File $phpcs_file The file being scanned.
+	 * @param int  $stack_ptr  The position of the current token.
+	 *
+	 * @return bool
+	 */
+	private function hasHtmlTemplating( File $phpcs_file, $stack_ptr ) {
+		$tokens = $phpcs_file->getTokens();
+
+		// Find the start of the control structure block.
+		$colon_ptr = $phpcs_file->findNext( T_COLON, $stack_ptr );
+		if ( false === $colon_ptr ) {
+			return false;
+		}
+
+		// Find the end of the control structure block.
+		$end_ptr = $this->findControlStructureEnd( $phpcs_file, $stack_ptr );
+		if ( false === $end_ptr ) {
+			return false;
+		}
+
+		// Look for PHP closing tags within the block.
+		for ( $i = $colon_ptr + 1; $i < $end_ptr; $i++ ) {
+			if ( T_CLOSE_TAG === $tokens[ $i ]['code'] ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Find the end token of a control structure.
+	 *
+	 * @param File $phpcs_file The file being scanned.
+	 * @param int  $stack_ptr  The position of the current token.
+	 *
+	 * @return int|false
+	 */
+	private function findControlStructureEnd( File $phpcs_file, $stack_ptr ) {
+		$tokens = $phpcs_file->getTokens();
+		$token  = $tokens[ $stack_ptr ];
+
+		$end_tokens = array(
+			T_IF      => array( T_ENDIF ),
+			T_ELSEIF  => array( T_ENDIF, T_ELSEIF, T_ELSE ),
+			T_ELSE    => array( T_ENDIF ),
+			T_WHILE   => array( T_ENDWHILE ),
+			T_FOR     => array( T_ENDFOR ),
+			T_FOREACH => array( T_ENDFOREACH ),
+		);
+
+		if ( ! isset( $end_tokens[ $token['code'] ] ) ) {
+			return false;
+		}
+
+		$target_tokens = $end_tokens[ $token['code'] ];
+
+		// For elseif and else, we need to find the next matching token.
+		$end_ptr = $phpcs_file->findNext( $target_tokens, $stack_ptr + 1 );
+
+		return $end_ptr;
+	}
+
+	/**
+	 * Check the indentation of HTML content within the control structure.
+	 *
+	 * @param File $phpcs_file The file being scanned.
+	 * @param int  $stack_ptr  The position of the current token.
+	 *
+	 * @return void
+	 */
+	private function checkHtmlIndentation( File $phpcs_file, $stack_ptr ) {
+		$tokens = $phpcs_file->getTokens();
+
+		// Get the base indentation of the control structure.
+		$base_indent = $this->getBaseIndentation( $phpcs_file, $stack_ptr );
+
+		// Find the colon that starts the block.
+		$colon_ptr = $phpcs_file->findNext( T_COLON, $stack_ptr );
+		if ( false === $colon_ptr ) {
+			return;
+		}
+
+		// Find the end of the control structure.
+		$end_ptr = $this->findControlStructureEnd( $phpcs_file, $stack_ptr );
+		if ( false === $end_ptr ) {
+			return;
+		}
+
+		// Check indentation of content within PHP closing and opening tags.
+		$this->checkTemplatingIndentation( $phpcs_file, $colon_ptr, $end_ptr, $base_indent );
+	}
+
+	/**
+	 * Get the base indentation of a control structure.
+	 *
+	 * @param File $phpcs_file The file being scanned.
+	 * @param int  $stack_ptr  The position of the current token.
+	 *
+	 * @return string
+	 */
+	private function getBaseIndentation( File $phpcs_file, $stack_ptr ) {
+		$tokens = $phpcs_file->getTokens();
+
+		// Find the start of the line containing the control structure.
+		$line_start_ptr = $stack_ptr;
+		while ( $line_start_ptr > 0 && $tokens[ $line_start_ptr - 1 ]['line'] === $tokens[ $stack_ptr ]['line'] ) {
+			--$line_start_ptr;
+		}
+
+		// Check if we're at the beginning of the file.
+		if ( 0 === $line_start_ptr ) {
+			return '';
+		}
+
+		// Look for the previous newline to find the true start of this line.
+		$prev_newline = $phpcs_file->findPrevious( T_WHITESPACE, $line_start_ptr - 1, null, false, "\n" );
+		if ( false === $prev_newline ) {
+			return '';
+		}
+
+		$indent = '';
+		for ( $i = $prev_newline + 1; $i < $stack_ptr; $i++ ) {
+			if ( T_WHITESPACE === $tokens[ $i ]['code'] && false === strpos( $tokens[ $i ]['content'], "\n" ) ) {
+				$indent .= $tokens[ $i ]['content'];
+			} else {
+				break;
+			}
+		}
+
+		return $indent;
+	}
+
+	/**
+	 * Check indentation of HTML templating content.
+	 *
+	 * @param File   $phpcs_file   The file being scanned.
+	 * @param int    $start_ptr    The start position.
+	 * @param int    $end_ptr      The end position.
+	 * @param string $base_indent  The base indentation.
+	 *
+	 * @return void
+	 */
+	private function checkTemplatingIndentation( File $phpcs_file, $start_ptr, $end_ptr, $base_indent ) {
+		$tokens = $phpcs_file->getTokens();
+
+		$i = $start_ptr + 1;
+		while ( $i < $end_ptr ) {
+			// Look for PHP closing tags.
+			if ( T_CLOSE_TAG === $tokens[ $i ]['code'] ) {
+				// Find the corresponding opening tag.
+				$open_tag_ptr = $phpcs_file->findNext( array( T_OPEN_TAG, T_OPEN_TAG_WITH_ECHO ), $i + 1, $end_ptr );
+				if ( false !== $open_tag_ptr ) {
+					// Check the indentation of HTML content between closing and opening tags.
+					$this->checkHtmlContentIndentation( $phpcs_file, $i, $open_tag_ptr, $base_indent );
+					$i = $open_tag_ptr;
+				} else {
+					++$i;
+				}
+			} else {
+				++$i;
+			}
+		}
+	}
+
+	/**
+	 * Check indentation of HTML content between PHP tags.
+	 *
+	 * @param File   $phpcs_file   The file being scanned.
+	 * @param int    $close_tag_ptr The closing PHP tag position.
+	 * @param int    $open_tag_ptr  The opening PHP tag position.
+	 * @param string $base_indent   The base indentation.
+	 *
+	 * @return void
+	 */
+	private function checkHtmlContentIndentation( File $phpcs_file, $close_tag_ptr, $open_tag_ptr, $base_indent ) {
+		$tokens = $phpcs_file->getTokens();
+
+		// Get the control structure's indentation level.
+		$control_indent = '';
+		$prev_line_ptr  = $phpcs_file->findPrevious( T_WHITESPACE, $close_tag_ptr - 1, null, false, "\n" );
+		if ( false !== $prev_line_ptr ) {
+			$line_start = $prev_line_ptr + 1;
+			while ( $line_start < $close_tag_ptr && T_WHITESPACE === $tokens[ $line_start ]['code'] ) {
+				$control_indent .= $tokens[ $line_start ]['content'];
+				++$line_start;
+			}
+		}
+
+		$current_ptr = $close_tag_ptr + 1;
+		while ( $current_ptr < $open_tag_ptr ) {
+			// Skip empty lines or lines with only whitespace.
+			if ( T_WHITESPACE === $tokens[ $current_ptr ]['code'] &&
+				strpos( $tokens[ $current_ptr ]['content'], "\n" ) !== false ) {
+				++$current_ptr;
+				continue;
+			}
+
+			// Find the start of the current line.
+			$line_start_ptr = $current_ptr;
+			while ( $line_start_ptr > $close_tag_ptr &&
+					$tokens[ $line_start_ptr - 1 ]['line'] === $tokens[ $current_ptr ]['line'] ) {
+				--$line_start_ptr;
+			}
+
+			// Skip empty lines.
+			if ( $line_start_ptr === $current_ptr && T_WHITESPACE === $tokens[ $current_ptr ]['code'] ) {
+				++$current_ptr;
+				continue;
+			}
+
+			// Get the actual indentation.
+			$actual_indent = '';
+			for ( $i = $line_start_ptr; $i < $current_ptr; $i++ ) {
+				if ( T_WHITESPACE === $tokens[ $i ]['code'] ) {
+					$actual_indent .= $tokens[ $i ]['content'];
+				}
+			}
+
+			// Clean up the indentation (remove newlines).
+			$actual_indent = str_replace( "\n", '', $actual_indent );
+
+			// Expected indentation is control structure indent plus one tab.
+			$expected_indent = $control_indent . "\t";
+
+			// Check if indentation is missing or incorrect.
+			if ( '' === $actual_indent || strlen( $actual_indent ) < strlen( $expected_indent ) ) {
+				$error = 'HTML content within control structures must be indented with at least one tab from the control structure.';
+				$fix   = $phpcs_file->addFixableError( $error, $current_ptr, 'NoIndentation' );
+
+				if ( true === $fix ) {
+					$phpcs_file->fixer->addContentBefore( $current_ptr, $expected_indent );
+				}
+			} elseif ( strpos( $actual_indent, ' ' ) !== false ) {
+				$error = 'HTML content within control structures must use tabs for indentation, not spaces.';
+				$fix   = $phpcs_file->addFixableError( $error, $line_start_ptr, 'SpacesInsteadOfTabs' );
+
+				if ( true === $fix ) {
+					$this->fixHtmlIndentation( $phpcs_file, $line_start_ptr, $expected_indent, $actual_indent );
+				}
+			} elseif ( substr( $actual_indent, 0, strlen( $expected_indent ) ) !== $expected_indent ) {
+				$error = 'HTML content within control structures must be indented with exactly one tab from the control structure.';
+				$fix   = $phpcs_file->addFixableError( $error, $line_start_ptr, 'IncorrectIndentation' );
+
+				if ( true === $fix ) {
+					$this->fixHtmlIndentation( $phpcs_file, $line_start_ptr, $expected_indent, $actual_indent );
+				}
+			}
+
+			// Move to the next line.
+			while ( $current_ptr < $open_tag_ptr &&
+					$tokens[ $current_ptr ]['line'] === $tokens[ $line_start_ptr ]['line'] ) {
+				++$current_ptr;
+			}
+		}
+	}
+
+	/**
+	 * Fix the indentation of HTML content.
+	 *
+	 * @param File   $phpcs_file       The file being scanned.
+	 * @param int    $line_start_ptr   The start of the line to fix.
+	 * @param string $expected_indent  The expected indentation.
+	 * @param string $actual_indent    The actual indentation.
+	 *
+	 * @return void
+	 */
+	private function fixHtmlIndentation( File $phpcs_file, $line_start_ptr, $expected_indent, $actual_indent ) {
+		$tokens      = $phpcs_file->getTokens();
+		$token_count = count( $tokens );
+
+		// Find the end of the current indentation.
+		$indent_end = $line_start_ptr;
+		while ( $indent_end < $token_count && T_WHITESPACE === $tokens[ $indent_end ]['code'] && false === strpos( $tokens[ $indent_end ]['content'], "\n" ) ) {
+			++$indent_end;
+		}
+
+		// Replace the current indentation with the expected indentation.
+		$phpcs_file->fixer->beginChangeset();
+
+		// Remove existing indentation.
+		for ( $i = $line_start_ptr; $i < $indent_end; $i++ ) {
+			$phpcs_file->fixer->replaceToken( $i, '' );
+		}
+
+		// Add correct indentation.
+		$phpcs_file->fixer->addContentBefore( $indent_end, $expected_indent );
+
+		$phpcs_file->fixer->endChangeset();
+	}
+}

@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="DemandDrive" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/squizlabs/PHP_CodeSniffer/master/phpcs.xsd">
+	<description>Custom PHPCS sniffs for DemandDrive projects</description>
+
+	<!-- Custom sniffs will be automatically loaded from src/ directory -->
+
+	<!-- File extensions to check -->
+	<arg name="extensions" value="php"/>
+
+	<!-- Show progress and use colors -->
+	<arg value="sp"/>
+	<arg name="colors"/>
+
+	<!-- Check up to 20 files simultaneously -->
+	<arg name="parallel" value="20"/>
+
+	<!-- Paths to check -->
+	<file>.</file>
+
+	<!-- Paths to ignore -->
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/tests/*</exclude-pattern>
+</ruleset>

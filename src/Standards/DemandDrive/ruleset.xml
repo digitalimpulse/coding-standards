@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="DemandDrive" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/squizlabs/PHP_CodeSniffer/master/phpcs.xsd">
+	<description>DemandDrive coding standards</description>
+
+	<!-- Include some PSR-12 rules -->
+	<rule ref="PSR12.Functions.ReturnTypeDeclaration"/>
+	<rule ref="PSR12.Keywords.ShortFormTypeKeywords"/>
+
+	<!-- Custom DemandDrive sniffs -->
+	<rule ref="DemandDrive.BEM.ClassNaming"/>
+	<rule ref="DemandDrive.Arrays.ArrayToLinkUsage"/>
+	<rule ref="DemandDrive.Conditionals.ConditionalMultiline"/>
+
+	<!-- Include WordPress Coding Standards -->
+	<rule ref="WordPress">
+		<!-- Disable internationalization checks -->
+		<exclude name="WordPress.WP.I18n" />
+	</rule>
+
+	<!-- Control Structure Spacing -->
+	<rule ref="WordPress.WhiteSpace.ControlStructureSpacing">
+		<properties>
+			<property name="blank_line_check" value="true" />
+		</properties>
+	</rule>
+
+	<!-- Hook Naming -->
+	<rule ref="WordPress.NamingConventions.ValidHookName">
+		<properties>
+			<property name="additionalWordDelimiters" value="/" />
+		</properties>
+	</rule>
+
+	<!-- Array Alignment -->
+	<rule ref="WordPress.Arrays.MultipleStatementAlignment">
+		<properties>
+			<property name="ignoreNewlines" value="false" />
+		</properties>
+	</rule>
+
+	<!-- Disable Generic short open tag rule completely -->
+	<rule ref="Generic.PHP.DisallowShortOpenTag">
+		<exclude name="Generic.PHP.DisallowShortOpenTag"/>
+	</rule>
+
+	<!-- Disable Universal short ternary rule -->
+	<rule ref="Universal.Operators.DisallowShortTernary">
+		<exclude name="Universal.Operators.DisallowShortTernary"/>
+	</rule>
+
+	<rule ref="WordPress.Files.FileName.InvalidClassFileName">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+
+	<rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+</ruleset>
