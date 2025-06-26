@@ -1,4 +1,4 @@
-# DemandDrive PHPCS Standards
+# DigitalImpulse PHPCS Standards
 
 Custom PHPCS sniffs for enforcing additional coding standards on DemandDrive PHP projects.
 
@@ -15,7 +15,7 @@ Install via Composer:
     }
   ],
   "require": {
-    "digitalimpulse/phpcs-coding-standards": "v0.1"
+    "digitalimpulse/coding-standards": "v0.1.1"
   }
 }
 ```

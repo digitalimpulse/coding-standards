@@ -94,12 +94,10 @@ class ConditionalMultilineSniff implements Sniff {
 					return;
 				}
 			}
-		} else {
+		} elseif ( $this->hasPhpClosingTags( $phpcs_file, $stack_ptr ) ) {
 			// Check if alternate syntax is allowed (has PHP closing tags).
-			if ( $this->hasPhpClosingTags( $phpcs_file, $stack_ptr ) ) {
-				// Alternate syntax is allowed when there are PHP closing tags.
-				return;
-			}
+			// Alternate syntax is allowed when there are PHP closing tags.
+			return;
 		}
 
 		// This appears to be alternate syntax without PHP closing tags.
@@ -141,7 +139,36 @@ class ConditionalMultilineSniff implements Sniff {
 		}
 
 		// This is a multiline conditional, check formatting.
+		$this->checkOpenParenthesisPlacement( $phpcs_file, $open_paren_ptr );
 		$this->checkConditionalIndentation( $phpcs_file, $open_paren_ptr, $close_paren_ptr );
+	}
+
+	/**
+	 * Check that opening parenthesis is on its own line for multiline conditionals.
+	 *
+	 * @param File $phpcs_file     The file being scanned.
+	 * @param int  $open_paren_ptr The position of the opening parenthesis.
+	 *
+	 * @return void
+	 */
+	private function checkOpenParenthesisPlacement( File $phpcs_file, $open_paren_ptr ) {
+		$tokens = $phpcs_file->getTokens();
+
+		// Find the first non-whitespace token after the opening parenthesis.
+		$next_token = $phpcs_file->findNext( T_WHITESPACE, $open_paren_ptr + 1, null, true );
+		if ( false === $next_token ) {
+			return;
+		}
+
+		// Check if the next non-whitespace token is on the same line as the opening parenthesis.
+		if ( $tokens[ $open_paren_ptr ]['line'] === $tokens[ $next_token ]['line'] ) {
+			$error = 'Opening parenthesis of multiline conditional should be followed by a newline';
+			$fix   = $phpcs_file->addFixableError( $error, $open_paren_ptr, 'OpenParenthesisPlacement' );
+
+			if ( true === $fix ) {
+				$this->fixOpenParenthesisPlacement( $phpcs_file, $open_paren_ptr, $next_token );
+			}
+		}
 	}
 
 	/**
@@ -201,10 +228,11 @@ class ConditionalMultilineSniff implements Sniff {
 				}
 
 				// Skip empty lines and comments.
-				if ( $j < $close_paren_ptr &&
+				if (
+					$j < $close_paren_ptr &&
 					T_COMMENT !== $tokens[ $j ]['code'] &&
-					$tokens[ $j ]['line'] !== $tokens[ $close_paren_ptr ]['line'] ) {
-
+					$tokens[ $j ]['line'] !== $tokens[ $close_paren_ptr ]['line']
+				) {
 					if ( $line_indent !== $expected_indent ) {
 						$error = 'Conditional statement content not indented correctly; expected %s spaces but found %s';
 						$fix   = $phpcs_file->addFixableError(
@@ -281,6 +309,61 @@ class ConditionalMultilineSniff implements Sniff {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Fix opening parenthesis placement by moving content to the next line.
+	 *
+	 * @param File $phpcs_file     The file being scanned.
+	 * @param int  $open_paren_ptr The position of the opening parenthesis.
+	 * @param int  $next_token     The position of the first content token.
+	 *
+	 * @return void
+	 */
+	private function fixOpenParenthesisPlacement( File $phpcs_file, $open_paren_ptr, $next_token ) {
+		$tokens = $phpcs_file->getTokens();
+
+		// Calculate the base indentation.
+		$base_indent = 0;
+		$paren_line  = $tokens[ $open_paren_ptr ]['line'];
+
+		// Find the start of the line containing the opening parenthesis.
+		for ( $i = $open_paren_ptr; $i >= 0; $i-- ) {
+			if ( $tokens[ $i ]['line'] < $paren_line ) {
+				$line_start = $i + 1;
+				break;
+			}
+		}
+
+		if ( isset( $line_start ) ) {
+			// Calculate base indentation.
+			for ( $j = $line_start; $j < $open_paren_ptr; $j++ ) {
+				if ( T_WHITESPACE === $tokens[ $j ]['code'] ) {
+					// Count tabs as 4 spaces for consistency.
+					$content      = str_replace( "\t", '    ', $tokens[ $j ]['content'] );
+					$base_indent += strlen( $content );
+				} else {
+					break;
+				}
+			}
+		}
+
+		$expected_indent = $base_indent + 4; // One level of indentation.
+
+		$phpcs_file->fixer->beginChangeset();
+
+		// Add a newline and proper indentation after the opening parenthesis.
+		$indent_string = "\n" . str_repeat( ' ', $expected_indent );
+		$phpcs_file->fixer->addContentBefore( $next_token, $indent_string );
+
+		// Remove any existing whitespace between the opening parenthesis and the first token.
+		for ( $i = $open_paren_ptr + 1; $i < $next_token; $i++ ) {
+			if ( T_WHITESPACE === $tokens[ $i ]['code'] ) {
+				$phpcs_file->fixer->replaceToken( $i, '' );
+			}
+		}
+
+		$phpcs_file->fixer->endChangeset();
 	}
 
 	/**

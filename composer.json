@@ -1,5 +1,5 @@
 {
-	"name": "demanddrive/php-coding-standards",
+	"name": "digitalimpulse/php-coding-standards",
 	"description": "Custom PHPCS sniffs for enforcing additional coding standards",
 	"type": "phpcodesniffer-standard",
 	"license": "GPL-2.0",
