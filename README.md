@@ -11,11 +11,11 @@ Install via Composer:
   "repositories": [
     {
       "type": "vcs",
-      "url": "https://github.com/digitalimpulse/phpcs-coding-standards"
+      "url": "https://github.com/digitalimpulse/coding-standards"
     }
   ],
   "require": {
-    "digitalimpulse/phpcs-coding-standards": "dev-main"
+    "digitalimpulse/phpcs-coding-standards": "v0.1"
   }
 }
 ```
