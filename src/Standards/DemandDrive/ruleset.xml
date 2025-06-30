@@ -8,7 +8,6 @@
 
 	<!-- Custom DemandDrive sniffs -->
 	<rule ref="DemandDrive.BEM.ClassNaming"/>
-	<rule ref="DemandDrive.Arrays.ArrayToLinkUsage"/>
 	<rule ref="DemandDrive.Conditionals.ConditionalMultiline"/>
 
 	<!-- Include WordPress Coding Standards -->

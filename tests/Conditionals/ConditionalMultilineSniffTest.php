@@ -58,7 +58,7 @@ class ConditionalMultilineSniffTest extends TestCase
 		}
 	}
 
-			/**
+	/**
 	 * Test that alternate syntax is detected and fails validation when no PHP closing tags.
 	 *
 	 * @return void
