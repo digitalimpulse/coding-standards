@@ -8,7 +8,8 @@
 
 	<!-- Custom DemandDrive sniffs -->
 	<rule ref="DemandDrive.BEM.ClassNaming"/>
-	<rule ref="DemandDrive.Conditionals.ConditionalMultiline"/>
+	<rule ref="DemandDrive.Conditionals.ConditionalAlternateSyntax"/>
+	<rule ref="DemandDrive.Conditionals.ConditionalIndentation"/>
 
 	<!-- Include WordPress Coding Standards -->
 	<rule ref="WordPress">
