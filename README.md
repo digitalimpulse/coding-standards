@@ -15,7 +15,7 @@ Install via Composer:
     }
   ],
   "require": {
-    "digitalimpulse/coding-standards": "v0.1.1"
+    "digitalimpulse/php-coding-standards": "v0.1.1"
   }
 }
 ```
